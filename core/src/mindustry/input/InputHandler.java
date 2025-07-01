@@ -1327,7 +1327,6 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
 
     public void rotatePlans(Seq<BuildPlan> plans, int direction){
         int ox = schemOriginX(), oy = schemOriginY();
-        int sign = direction >= 0 ? 1 : -1;
         boolean dir = direction >= 0;
         
         plans.each(plan -> {
@@ -1340,29 +1339,23 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
             });
 
             //rotate actual plan, centered on its multiblock position
-            float wx = (plan.x - ox) * tilesize + plan.block.offset, wy = (plan.y - oy) * tilesize + plan.block.offset;
-            float x = wx;
-
-            wx = sign * -wy;
-            wy = sign * x;
-
-            plan.x = World.toTile(wx - plan.block.offset) + ox;
-            plan.y = World.toTile(wy - plan.block.offset) + oy;
+            int planx = plan.x;
+            if(dir){
+                plan.x = (int)(ox + oy - (plan.block.offset / tilesize) * 2 - plan.y);
+                plan.y = planx  - ox + oy;
+            }else{
+                plan.x = plan.y - oy + ox;
+                plan.y = (int)(ox + oy - (plan.block.offset / tilesize) * 2 - planx );
+            }
+            //looks similar to the rotation logic from flipplans but schemorigins are different
             plan.rotation = plan.block.planRotation(Mathf.mod(plan.rotation + direction, 4));
         });
     }
 
     public void flipPlans(Seq<BuildPlan> plans, boolean x){
-        int origin = (x ? schemOriginX() : schemOriginY()) * tilesize;
 
         plans.each(plan -> {
             if(plan.breaking) return;
-
-            float value = -((x ? plan.x : plan.y) * tilesize - origin + plan.block.offset) + origin;
-            int plancoord = (int)((value - plan.block.offset) / tilesize);
-
-            if(x)   plan.x = plancoord;
-            else    plan.y = plancoord;
 
             int off = (plan.block.size + 1) & 1; // plan.block.size % 2 == 0 ? 1 : 0
             plan.pointConfig(p -> {
@@ -1370,6 +1363,8 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
                 else    p.y = off - p.y;
             });
 
+            if(x)   plan.x = (int)((schemOriginX() - plan.block.offset / tilesize) * 2 - plan.x);
+            else    plan.y = (int)((schemOriginY() - plan.block.offset / tilesize) * 2 - plan.y);
             //flip rotation
             plan.block.flipRotation(plan, x);
         });
